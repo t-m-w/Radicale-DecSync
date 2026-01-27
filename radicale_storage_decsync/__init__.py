@@ -157,8 +157,8 @@ class Storage(storage.Storage):
             self.decsync_dir = ""
 
     def discover(self, path, depth="0", child_context_manager=(
-            lambda path, href=None: contextlib.ExitStack())):
-        collections = list(super().discover(path, depth, child_context_manager))
+            lambda path, href=None: contextlib.ExitStack()),user_groups=set()):
+        collections = list(super().discover(path, depth, child_context_manager, user_groups))
         for collection in collections:
             yield collection
 
