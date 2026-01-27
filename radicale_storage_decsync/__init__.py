@@ -94,21 +94,17 @@ class Collection(storage.Collection, CollectionHrefMappingsMixin):
             self.load_hrefs(sync_type)
 
     def upload(self, href, orig_item, update_decsync=True):
-        result = super().upload(href, orig_item)
-        if isinstance(result, tuple):
-            item = next((x for x in result if hasattr(x, "uid")), result[1])
-        else:
-            item = result
+        item = super().upload(href, orig_item)
         if update_decsync:
-            if hasattr(self, 'decsync'):
-                tag = self.get_meta("tag")
-                if tag == "VCALENDAR":
-                    supported = (self.get_meta("C:supported-calendar-component-set") or "VEVENT,VTODO,VJOURNAL").split(",")
-                    if len(supported) > 1 and item.component_name != "VEVENT":
-                        raise RuntimeError("Component not supported by old DecSync.")
-                self.set_href(item.uid, href)
-                self.decsync.set_entry(["resources", item.uid], None, item.serialize())
-        return result
+            tag = self.get_meta("tag")
+            if tag == "VCALENDAR":
+                supported_components = (self.get_meta("C:supported-calendar-component-set") or "VEVENT,VTODO,VJOURNAL").split(",")
+                component_name = item.component_name
+                if len(supported_components) > 1 and component_name != "VEVENT":
+                    raise RuntimeError("Component " + component_name + " is not supported by old DecSync collections. Create a new collection in Radicale for support.")
+            self.set_href(item.uid, href)
+            self.decsync.set_entry(["resources", item.uid], None, item.serialize())
+        return item
 
     def delete(self, href=None, update_decsync=True):
         if update_decsync:
@@ -250,16 +246,12 @@ class Storage(storage.Storage):
             raise RuntimeError("Unknown tag " + tag)
 
         if collection.startswith(sync_type + "-"):
-            path = href 
+            path = "/%s/%s/" % (username, collection)
         else:
             path = "/%s/%s-%s/" % (username, sync_type, collection)
-        result = super().create_collection(path, None, props)
-        if isinstance(result, tuple):
-            col = next((x for x in result if hasattr(x, "get_href")), result[0])
-        else:
-            col = result
+        col = super().create_collection(path, None, props)
         if items is not None:
             for item in items:
                 href = col.get_href(item.uid)
-                col.upload(href, item)    
-        return result
+                col.upload(href, item)
+        return col
